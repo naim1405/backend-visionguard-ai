@@ -22,6 +22,10 @@ from config import (
     VIDEO_FILE_PATH,
 )
 
+# Import for validation error handling
+from fastapi.exceptions import RequestValidationError
+from fastapi import Request, status
+
 # Import signaling router
 from signaling import router as signaling_router, cleanup_all_connections
 
@@ -33,6 +37,13 @@ from session_manager import get_session_manager
 
 # Import model manager
 from model_manager import get_model_manager
+
+# Import database
+from database import init_db
+
+# Import auth and shop routers
+from auth_routes import router as auth_router
+from shop_routes import router as shop_router
 
 # Configure logging
 logging.basicConfig(
@@ -238,6 +249,15 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {APP_NAME} v{APP_VERSION}")
     logger.info("=" * 70)
 
+    # Initialize database
+    logger.info("Initializing database...")
+    try:
+        init_db()
+        logger.info("✓ Database initialized successfully")
+    except Exception as e:
+        logger.error(f"✗ Failed to initialize database: {e}")
+        logger.warning("  Authentication features may not work without database")
+
     # Load AI models at startup (singleton pattern - load once, share across all streams)
     logger.info("Loading AI models (this may take a moment)...")
     try:
@@ -334,6 +354,14 @@ logger.info("✓ WebRTC signaling router included at /api")
 # Include WebSocket router
 app.include_router(websocket_router)
 logger.info("✓ WebSocket router included at /ws")
+
+# Include authentication router
+app.include_router(auth_router)
+logger.info("✓ Authentication router included at /auth")
+
+# Include shop management router
+app.include_router(shop_router)
+logger.info("✓ Shop management router included at /shops")
 
 
 # ============================================================================
@@ -552,6 +580,30 @@ def video_data():
 # ============================================================================
 # Error Handlers
 # ============================================================================
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Custom validation error handler to provide detailed error messages
+    """
+    errors = []
+    for error in exc.errors():
+        errors.append({
+            "field": " -> ".join(str(x) for x in error["loc"]),
+            "message": error["msg"],
+            "type": error["type"],
+        })
+    
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "error": "Validation Error",
+            "message": "Request validation failed",
+            "details": errors,
+            "body_received": exc.body if hasattr(exc, 'body') else None,
+        },
+    )
 
 
 @app.exception_handler(404)

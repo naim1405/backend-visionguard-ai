@@ -10,16 +10,23 @@ import logging
 import uuid
 import asyncio
 from typing import Dict, Optional
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from pydantic import BaseModel, Field
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, MediaStreamTrack
 from av import VideoFrame
+from sqlalchemy.orm import Session
 
 # Import session manager and WebSocket manager
 from session_manager import get_session_manager
 from websocket_handler import get_websocket_manager
 from websocket_processor import WebSocketAnomalyProcessor
 from config import get_rtc_configuration
+
+# Import authentication dependencies
+from database import get_db
+from models import User, Shop
+from auth_dependencies import get_current_user, verify_shop_access
+from uuid import UUID as PyUUID
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,12 +44,13 @@ router = APIRouter(prefix="/api", tags=["WebRTC Signaling"])
 class OfferRequest(BaseModel):
     """
     Request model for receiving SDP offer from client
-    Frontend will send video stream via WebRTC with user identification
+    Frontend will send video stream via WebRTC with user identification and shop ID
     """
 
     sdp: str = Field(..., description="Session Description Protocol offer")
     type: str = Field(..., description="SDP type (should be 'offer')")
     user_id: str = Field(..., description="User identifier for session management")
+    shop_id: str = Field(..., description="Shop ID that this stream belongs to")
     stream_metadata: Optional[Dict] = Field(None, description="Optional stream metadata (name, camera_id, etc)")
 
     class Config:
@@ -51,6 +59,7 @@ class OfferRequest(BaseModel):
                 "sdp": "v=0\r\no=- 123456789 2 IN IP4 127.0.0.1\r\n...",
                 "type": "offer",
                 "user_id": "user_123",
+                "shop_id": "123e4567-e89b-12d3-a456-426614174000",
                 "stream_metadata": {
                     "stream_name": "Camera 1",
                     "camera_id": "cam-001",
@@ -254,21 +263,25 @@ async def cleanup_stream(stream_id: str):
     "/offer",
     response_model=AnswerResponse,
     status_code=200,
-    summary="Exchange WebRTC SDP Offer/Answer",
+    summary="Exchange WebRTC SDP Offer/Answer (Requires Authentication)",
     description="""
-    ## WebRTC Signaling Endpoint
+    ## WebRTC Signaling Endpoint (Protected)
     
     This endpoint handles the WebRTC signaling handshake by exchanging SDP (Session Description Protocol) 
     offer and answer between the client and server.
     
+    **Authentication Required**: Must provide valid JWT token in Authorization header.
+    **Authorization**: User must have access to the specified shop (owner or assigned manager).
+    
     ### Process Flow:
-    1. Client sends SDP offer containing media capabilities, video track, and user_id
-    2. Server creates an RTCPeerConnection with configured STUN servers
-    3. Server generates unique stream_id for this connection
-    4. Server receives video stream from frontend
-    5. Server processes frames for anomaly detection
-    6. Server sends anomaly alerts via WebSocket at /ws/alerts/{user_id}
-    7. Server returns SDP answer with user_id and stream_id
+    1. Client sends SDP offer containing media capabilities, video track, user_id, and shop_id
+    2. Server validates user authentication and shop access
+    3. Server creates an RTCPeerConnection with configured STUN servers
+    4. Server generates unique stream_id for this connection
+    5. Server receives video stream from frontend
+    6. Server processes frames for anomaly detection
+    7. Server sends anomaly alerts via WebSocket at /ws/alerts/{user_id}
+    8. Server returns SDP answer with user_id and stream_id
     
     ### Features:
     - Multiple streams per user supported
@@ -276,6 +289,7 @@ async def cleanup_stream(stream_id: str):
     - Unique stream_id for each connection
     - All streams' alerts sent to single user WebSocket
     - Automatic cleanup on connection failure
+    - Shop-based access control
     
     ### Video Processing:
     - Receives video from frontend (webcam/uploaded video)
@@ -284,32 +298,59 @@ async def cleanup_stream(stream_id: str):
     """,
     tags=["WebRTC Signaling"],
 )
-async def handle_offer(offer: OfferRequest = Body(...)):
+async def handle_offer(
+    offer: OfferRequest = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
-    Handle WebRTC offer from client and return answer
+    Handle WebRTC offer from client and return answer (Protected Endpoint)
 
     This endpoint:
-    1. Receives SDP offer from the frontend with user_id
-    2. Creates an RTCPeerConnection
-    3. Generates unique stream_id
-    4. Sets up video track handler to receive frames from frontend
-    5. Creates and returns SDP answer with user_id and stream_id
-    6. Frontend should connect to WebSocket at /ws/alerts/{user_id}
+    1. Validates user authentication and shop access
+    2. Receives SDP offer from the frontend with user_id and shop_id
+    3. Creates an RTCPeerConnection
+    4. Generates unique stream_id
+    5. Sets up video track handler to receive frames from frontend
+    6. Creates and returns SDP answer with user_id and stream_id
+    7. Frontend should connect to WebSocket at /ws/alerts/{user_id}
 
     Args:
-        offer (OfferRequest): SDP offer from client with user_id
+        offer (OfferRequest): SDP offer from client with user_id and shop_id
+        current_user (User): Authenticated user from JWT token
+        db (Session): Database session
 
     Returns:
         AnswerResponse: SDP answer with user_id and stream_id
 
     Raises:
-        HTTPException: If offer processing fails
+        HTTPException: If offer processing fails or unauthorized
     """
     # Generate unique stream ID
     stream_id = str(uuid.uuid4())
     user_id = offer.user_id
     
-    logger.info(f"[{user_id}] Received WebRTC offer for new stream")
+    # Validate that the user_id in request matches authenticated user
+    if str(current_user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="User ID in request does not match authenticated user"
+        )
+    
+    # Validate shop access
+    try:
+        shop_id = PyUUID(offer.shop_id)
+        verify_shop_access(shop_id, current_user, db)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid shop ID format"
+        )
+    except HTTPException as e:
+        # Re-raise authorization errors
+        raise e
+    
+    logger.info(f"[{user_id}] Received WebRTC offer for new stream (shop: {offer.shop_id})")
 
     try:
         # Validate offer type
@@ -362,179 +403,6 @@ async def handle_offer(offer: OfferRequest = Body(...)):
         raise HTTPException(
             status_code=500, detail=f"Failed to process offer: {str(e)}"
         )
-
-
-@router.get(
-    "/session/{session_id}",
-    response_model=SessionInfo,
-    summary="Get Session Information",
-    description="""
-    ## Retrieve WebRTC Session Details
-    
-    Get the current state and connection information for an active WebRTC session.
-    
-    ### Returns:
-    - Session ID
-    - Connection state (new, connecting, connected, disconnected, failed, closed)
-    - ICE connection state
-    - ICE gathering state
-    - Signaling state
-    
-    ### Use Cases:
-    - Monitor connection health
-    - Debug connection issues
-    - Track session lifecycle
-    """,
-    responses={
-        200: {"description": "Session information retrieved successfully"},
-        404: {
-            "description": "Session not found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Session 550e8400-e29b-41d4-a716-446655440000 not found"
-                    }
-                }
-            },
-        },
-    },
-    tags=["Session Management"],
-)
-async def get_session_info(session_id: str):
-    """
-    Get information about an active WebRTC session
-
-    Args:
-        session_id (str): Session identifier
-
-    Returns:
-        SessionInfo: Current session state information
-
-    Raises:
-        HTTPException: If session not found
-    """
-    if session_id not in peer_connections:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
-
-    pc = peer_connections[session_id]
-
-    return SessionInfo(
-        session_id=session_id,
-        connection_state=pc.connectionState,
-        ice_connection_state=pc.iceConnectionState,
-        ice_gathering_state=pc.iceGatheringState,
-        signaling_state=pc.signalingState,
-    )
-
-
-@router.delete(
-    "/session/{session_id}",
-    summary="Close Session",
-    description="""
-    ## Manually Terminate WebRTC Session
-    
-    Closes an active WebRTC session and releases all associated resources.
-    
-    ### Actions:
-    - Closes RTCPeerConnection
-    - Stops video stream
-    - Releases video capture resources
-    - Removes session from active connections
-    
-    ### When to Use:
-    - Client explicitly disconnects
-    - Cleanup after testing
-    - Force close problematic connections
-    """,
-    responses={
-        200: {
-            "description": "Session closed successfully",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": "success",
-                        "message": "Session 550e8400-e29b-41d4-a716-446655440000 closed",
-                        "active_connections": 1,
-                    }
-                }
-            },
-        },
-        404: {"description": "Session not found"},
-    },
-    tags=["Session Management"],
-)
-async def close_session(session_id: str):
-    """
-    Manually close a WebRTC session
-
-    Args:
-        session_id (str): Session identifier to close
-
-    Returns:
-        dict: Success message
-
-    Raises:
-        HTTPException: If session not found
-    """
-    if session_id not in peer_connections:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
-
-    await cleanup_peer_connection(session_id)
-
-    return {
-        "status": "success",
-        "message": f"Session {session_id} closed",
-        "active_connections": len(peer_connections),
-    }
-
-
-@router.get(
-    "/sessions",
-    summary="List Active Sessions",
-    description="""
-    ## Get All Active WebRTC Sessions
-    
-    Returns a list of all currently active WebRTC session identifiers.
-    
-    ### Response Includes:
-    - Array of session UUIDs
-    - Total count of active sessions
-    
-    ### Use Cases:
-    - Monitor server load
-    - Track concurrent connections
-    - Administrative oversight
-    - Capacity planning
-    """,
-    responses={
-        200: {
-            "description": "List of active sessions",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "active_sessions": [
-                            "550e8400-e29b-41d4-a716-446655440000",
-                            "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-                        ],
-                        "count": 2,
-                    }
-                }
-            },
-        }
-    },
-    tags=["Session Management"],
-)
-async def list_sessions():
-    """
-    List all active WebRTC sessions
-
-    Returns:
-        dict: List of active session IDs and count
-    """
-    return {
-        "active_sessions": list(peer_connections.keys()),
-        "count": len(peer_connections),
-    }
 
 
 @router.get(
@@ -875,9 +743,6 @@ async def get_stats():
     session_mgr = get_session_manager()
     stats = session_mgr.get_global_stats()
     
-    # Add peer connection count
-    stats["active_peer_connections"] = len(peer_connections)
-    
     return stats
 
 
@@ -910,9 +775,12 @@ async def health_check():
     Returns:
         HealthResponse: Service health status
     """
+    session_mgr = get_session_manager()
+    stats = session_mgr.get_global_stats()
+    
     return HealthResponse(
         status="healthy",
-        active_connections=len(peer_connections),
+        active_connections=stats["total_streams"],
         service="WebRTC Signaling",
     )
 
@@ -924,13 +792,15 @@ async def health_check():
 
 async def cleanup_all_connections():
     """
-    Clean up all active peer connections
+    Clean up all active connections and sessions
     Should be called on application shutdown
     """
-    logger.info("Cleaning up all peer connections...")
+    logger.info("Cleaning up all connections...")
 
-    session_ids = list(peer_connections.keys())
-    for session_id in session_ids:
-        await cleanup_peer_connection(session_id)
+    session_mgr = get_session_manager()
+    all_users = list(session_mgr.user_sessions.keys())
+    
+    for user_id in all_users:
+        await session_mgr.cleanup_user(user_id)
 
-    logger.info("All peer connections cleaned up")
+    logger.info("All connections cleaned up")
