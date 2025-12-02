@@ -352,18 +352,6 @@ async def handle_offer(
     
     logger.info(f"[{user_id}] Received WebRTC offer for new stream (shop: {offer.shop_id})")
 
-    Returns:
-        AnswerResponse: SDP answer with user_id and stream_id
-
-    Raises:
-        HTTPException: If offer processing fails
-    """
-    # Generate unique stream ID
-    stream_id = str(uuid.uuid4())
-    user_id = offer.user_id
-    
-    logger.info(f"[{user_id}] Received WebRTC offer for new stream")
-
     try:
         # Validate offer type
         if offer.type != "offer":
@@ -415,179 +403,6 @@ async def handle_offer(
         raise HTTPException(
             status_code=500, detail=f"Failed to process offer: {str(e)}"
         )
-
-
-@router.get(
-    "/session/{session_id}",
-    response_model=SessionInfo,
-    summary="Get Session Information",
-    description="""
-    ## Retrieve WebRTC Session Details
-    
-    Get the current state and connection information for an active WebRTC session.
-    
-    ### Returns:
-    - Session ID
-    - Connection state (new, connecting, connected, disconnected, failed, closed)
-    - ICE connection state
-    - ICE gathering state
-    - Signaling state
-    
-    ### Use Cases:
-    - Monitor connection health
-    - Debug connection issues
-    - Track session lifecycle
-    """,
-    responses={
-        200: {"description": "Session information retrieved successfully"},
-        404: {
-            "description": "Session not found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Session 550e8400-e29b-41d4-a716-446655440000 not found"
-                    }
-                }
-            },
-        },
-    },
-    tags=["Session Management"],
-)
-async def get_session_info(session_id: str):
-    """
-    Get information about an active WebRTC session
-
-    Args:
-        session_id (str): Session identifier
-
-    Returns:
-        SessionInfo: Current session state information
-
-    Raises:
-        HTTPException: If session not found
-    """
-    if session_id not in peer_connections:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
-
-    pc = peer_connections[session_id]
-
-    return SessionInfo(
-        session_id=session_id,
-        connection_state=pc.connectionState,
-        ice_connection_state=pc.iceConnectionState,
-        ice_gathering_state=pc.iceGatheringState,
-        signaling_state=pc.signalingState,
-    )
-
-
-@router.delete(
-    "/session/{session_id}",
-    summary="Close Session",
-    description="""
-    ## Manually Terminate WebRTC Session
-    
-    Closes an active WebRTC session and releases all associated resources.
-    
-    ### Actions:
-    - Closes RTCPeerConnection
-    - Stops video stream
-    - Releases video capture resources
-    - Removes session from active connections
-    
-    ### When to Use:
-    - Client explicitly disconnects
-    - Cleanup after testing
-    - Force close problematic connections
-    """,
-    responses={
-        200: {
-            "description": "Session closed successfully",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": "success",
-                        "message": "Session 550e8400-e29b-41d4-a716-446655440000 closed",
-                        "active_connections": 1,
-                    }
-                }
-            },
-        },
-        404: {"description": "Session not found"},
-    },
-    tags=["Session Management"],
-)
-async def close_session(session_id: str):
-    """
-    Manually close a WebRTC session
-
-    Args:
-        session_id (str): Session identifier to close
-
-    Returns:
-        dict: Success message
-
-    Raises:
-        HTTPException: If session not found
-    """
-    if session_id not in peer_connections:
-        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
-
-    await cleanup_peer_connection(session_id)
-
-    return {
-        "status": "success",
-        "message": f"Session {session_id} closed",
-        "active_connections": len(peer_connections),
-    }
-
-
-@router.get(
-    "/sessions",
-    summary="List Active Sessions",
-    description="""
-    ## Get All Active WebRTC Sessions
-    
-    Returns a list of all currently active WebRTC session identifiers.
-    
-    ### Response Includes:
-    - Array of session UUIDs
-    - Total count of active sessions
-    
-    ### Use Cases:
-    - Monitor server load
-    - Track concurrent connections
-    - Administrative oversight
-    - Capacity planning
-    """,
-    responses={
-        200: {
-            "description": "List of active sessions",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "active_sessions": [
-                            "550e8400-e29b-41d4-a716-446655440000",
-                            "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-                        ],
-                        "count": 2,
-                    }
-                }
-            },
-        }
-    },
-    tags=["Session Management"],
-)
-async def list_sessions():
-    """
-    List all active WebRTC sessions
-
-    Returns:
-        dict: List of active session IDs and count
-    """
-    return {
-        "active_sessions": list(peer_connections.keys()),
-        "count": len(peer_connections),
-    }
 
 
 @router.get(
@@ -928,9 +743,6 @@ async def get_stats():
     session_mgr = get_session_manager()
     stats = session_mgr.get_global_stats()
     
-    # Add peer connection count
-    stats["active_peer_connections"] = len(peer_connections)
-    
     return stats
 
 
@@ -963,9 +775,12 @@ async def health_check():
     Returns:
         HealthResponse: Service health status
     """
+    session_mgr = get_session_manager()
+    stats = session_mgr.get_global_stats()
+    
     return HealthResponse(
         status="healthy",
-        active_connections=len(peer_connections),
+        active_connections=stats["total_streams"],
         service="WebRTC Signaling",
     )
 
@@ -977,13 +792,15 @@ async def health_check():
 
 async def cleanup_all_connections():
     """
-    Clean up all active peer connections
+    Clean up all active connections and sessions
     Should be called on application shutdown
     """
-    logger.info("Cleaning up all peer connections...")
+    logger.info("Cleaning up all connections...")
 
-    session_ids = list(peer_connections.keys())
-    for session_id in session_ids:
-        await cleanup_peer_connection(session_id)
+    session_mgr = get_session_manager()
+    all_users = list(session_mgr.user_sessions.keys())
+    
+    for user_id in all_users:
+        await session_mgr.cleanup_user(user_id)
 
-    logger.info("All peer connections cleaned up")
+    logger.info("All connections cleaned up")
