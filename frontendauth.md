@@ -1,4 +1,5 @@
 # Frontend Authentication Implementation Guide
+
 ## VisionGuard AI - React/Next.js Frontend Integration
 
 This guide provides a complete implementation roadmap for integrating authentication with the VisionGuard AI backend in your React or Next.js frontend application.
@@ -24,12 +25,14 @@ This guide provides a complete implementation roadmap for integrating authentica
 ## Overview
 
 The VisionGuard AI backend now includes:
+
 - **JWT-based authentication** (access & refresh tokens)
 - **Role-based authorization** (OWNER and MANAGER roles)
 - **Shop management** with manager assignments
 - **Protected WebRTC** and WebSocket endpoints
 
 Your frontend must:
+
 - Handle user registration and login
 - Store and manage JWT tokens securely
 - Include tokens in API requests, WebRTC offers, and WebSocket connections
@@ -71,6 +74,7 @@ Your frontend must:
 ### Role-Based Access
 
 - **OWNER**:
+
   - Can create, view, update, and delete their own shops
   - Can assign managers to shops
   - Sees all shops they own
@@ -114,8 +118,8 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8000
 ### Create Auth Context (`src/context/AuthContext.jsx`)
 
 ```jsx
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+import React, { createContext, useState, useContext, useEffect } from "react";
+import axios from "axios";
 
 const AuthContext = createContext(null);
 
@@ -125,13 +129,13 @@ export const AuthProvider = ({ children }) => {
   const [refreshToken, setRefreshToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
   // Load tokens from localStorage on mount
   useEffect(() => {
-    const storedAccessToken = localStorage.getItem('access_token');
-    const storedRefreshToken = localStorage.getItem('refresh_token');
-    const storedUser = localStorage.getItem('user');
+    const storedAccessToken = localStorage.getItem("access_token");
+    const storedRefreshToken = localStorage.getItem("refresh_token");
+    const storedUser = localStorage.getItem("user");
 
     if (storedAccessToken && storedUser) {
       setAccessToken(storedAccessToken);
@@ -153,9 +157,9 @@ export const AuthProvider = ({ children }) => {
       const { access_token, refresh_token, user: userData } = response.data;
 
       // Store tokens and user data
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem("access_token", access_token);
+      localStorage.setItem("refresh_token", refresh_token);
+      localStorage.setItem("user", JSON.stringify(userData));
 
       setAccessToken(access_token);
       setRefreshToken(refresh_token);
@@ -165,7 +169,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || 'Registration failed',
+        error: error.response?.data?.detail || "Registration failed",
       };
     }
   };
@@ -181,9 +185,9 @@ export const AuthProvider = ({ children }) => {
       const { access_token, refresh_token, user: userData } = response.data;
 
       // Store tokens and user data
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem("access_token", access_token);
+      localStorage.setItem("refresh_token", refresh_token);
+      localStorage.setItem("user", JSON.stringify(userData));
 
       setAccessToken(access_token);
       setRefreshToken(refresh_token);
@@ -193,7 +197,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || 'Login failed',
+        error: error.response?.data?.detail || "Login failed",
       };
     }
   };
@@ -212,12 +216,12 @@ export const AuthProvider = ({ children }) => {
         );
       }
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     } finally {
       // Clear local storage
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user");
 
       setAccessToken(null);
       setRefreshToken(null);
@@ -235,7 +239,7 @@ export const AuthProvider = ({ children }) => {
       });
       return response.data;
     } catch (error) {
-      console.error('Get current user error:', error);
+      console.error("Get current user error:", error);
       return null;
     }
   };
@@ -246,8 +250,8 @@ export const AuthProvider = ({ children }) => {
     refreshToken,
     loading,
     isAuthenticated: !!accessToken,
-    isOwner: user?.role === 'OWNER',
-    isManager: user?.role === 'MANAGER',
+    isOwner: user?.role === "OWNER",
+    isManager: user?.role === "MANAGER",
     registerOwner,
     login,
     logout,
@@ -260,7 +264,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
@@ -273,21 +277,21 @@ export const useAuth = () => {
 ### Create Axios Instance (`src/api/axios.js`)
 
 ```javascript
-import axios from 'axios';
+import axios from "axios";
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem("access_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -304,10 +308,10 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expired or invalid - redirect to login
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
     }
     return Promise.reject(error);
   }
@@ -323,14 +327,14 @@ export default apiClient;
 ### Login Component (`src/components/Login.jsx`)
 
 ```jsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
@@ -338,17 +342,17 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     const result = await login(email, password);
 
     if (result.success) {
       // Redirect based on role
-      if (result.user.role === 'OWNER') {
-        navigate('/dashboard');
+      if (result.user.role === "OWNER") {
+        navigate("/dashboard");
       } else {
-        navigate('/my-shops');
+        navigate("/my-shops");
       }
     } else {
       setError(result.error);
@@ -384,7 +388,7 @@ const Login = () => {
         {error && <div className="error-message">{error}</div>}
 
         <button type="submit" disabled={loading}>
-          {loading ? 'Logging in...' : 'Login'}
+          {loading ? "Logging in..." : "Login"}
         </button>
       </form>
 
@@ -401,16 +405,16 @@ export default Login;
 ### Register Component (`src/components/Register.jsx`)
 
 ```jsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Register = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const { registerOwner } = useAuth();
@@ -418,15 +422,15 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       return;
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError("Password must be at least 8 characters");
       return;
     }
 
@@ -435,7 +439,7 @@ const Register = () => {
     const result = await registerOwner(name, email, password);
 
     if (result.success) {
-      navigate('/dashboard');
+      navigate("/dashboard");
     } else {
       setError(result.error);
     }
@@ -490,7 +494,7 @@ const Register = () => {
         {error && <div className="error-message">{error}</div>}
 
         <button type="submit" disabled={loading}>
-          {loading ? 'Registering...' : 'Register'}
+          {loading ? "Registering..." : "Register"}
         </button>
       </form>
 
@@ -511,9 +515,9 @@ export default Register;
 ### Protected Route Component (`src/components/ProtectedRoute.jsx`)
 
 ```jsx
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React from "react";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const ProtectedRoute = ({ children, requireRole = null }) => {
   const { isAuthenticated, user, loading } = useAuth();
@@ -539,15 +543,15 @@ export default ProtectedRoute;
 ### App Router Setup (`src/App.jsx`)
 
 ```jsx
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import Login from './components/Login';
-import Register from './components/Register';
-import Dashboard from './components/Dashboard';
-import ShopList from './components/ShopList';
-import VideoStream from './components/VideoStream';
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Login from "./components/Login";
+import Register from "./components/Register";
+import Dashboard from "./components/Dashboard";
+import ShopList from "./components/ShopList";
+import VideoStream from "./components/VideoStream";
 
 function App() {
   return (
@@ -603,12 +607,12 @@ export default App;
 ### Shop API Service (`src/api/shopService.js`)
 
 ```javascript
-import apiClient from './axios';
+import apiClient from "./axios";
 
 export const shopService = {
   // Get all shops (OWNER sees owned, MANAGER sees assigned)
   getAllShops: async () => {
-    const response = await apiClient.get('/shops');
+    const response = await apiClient.get("/shops");
     return response.data;
   },
 
@@ -620,7 +624,7 @@ export const shopService = {
 
   // Create shop (OWNER only)
   createShop: async (shopData) => {
-    const response = await apiClient.post('/shops', shopData);
+    const response = await apiClient.post("/shops", shopData);
     return response.data;
   },
 
@@ -646,15 +650,15 @@ export const shopService = {
 ### Shop List Component (`src/components/ShopList.jsx`)
 
 ```jsx
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { shopService } from '../api/shopService';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { shopService } from "../api/shopService";
 
 const ShopList = () => {
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const { user, isOwner } = useAuth();
   const navigate = useNavigate();
@@ -668,7 +672,7 @@ const ShopList = () => {
       const data = await shopService.getAllShops();
       setShops(data);
     } catch (err) {
-      setError('Failed to load shops');
+      setError("Failed to load shops");
       console.error(err);
     } finally {
       setLoading(false);
@@ -684,10 +688,10 @@ const ShopList = () => {
 
   return (
     <div className="shop-list">
-      <h2>{isOwner ? 'My Shops' : 'Assigned Shops'}</h2>
+      <h2>{isOwner ? "My Shops" : "Assigned Shops"}</h2>
 
       {isOwner && (
-        <button onClick={() => navigate('/create-shop')}>
+        <button onClick={() => navigate("/create-shop")}>
           Create New Shop
         </button>
       )}
@@ -697,7 +701,7 @@ const ShopList = () => {
           <div key={shop.id} className="shop-card">
             <h3>{shop.name}</h3>
             <p>{shop.address}</p>
-            
+
             <div className="managers">
               <strong>Managers:</strong>
               {shop.managers.length > 0 ? (
@@ -725,7 +729,7 @@ const ShopList = () => {
       </div>
 
       {shops.length === 0 && (
-        <p>No shops available. {isOwner && 'Create your first shop!'}</p>
+        <p>No shops available. {isOwner && "Create your first shop!"}</p>
       )}
     </div>
   );
@@ -741,9 +745,9 @@ export default ShopList;
 ### Video Stream Component with Authentication (`src/components/VideoStream.jsx`)
 
 ```jsx
-import React, { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React, { useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const VideoStream = () => {
   const { shopId } = useParams();
@@ -751,9 +755,9 @@ const VideoStream = () => {
   const videoRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const [streamId, setStreamId] = useState(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
   useEffect(() => {
     startWebRTC();
@@ -781,8 +785,8 @@ const VideoStream = () => {
       // Create RTCPeerConnection
       const pc = new RTCPeerConnection({
         iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" },
         ],
       });
 
@@ -799,10 +803,10 @@ const VideoStream = () => {
 
       // Send offer to backend with authentication
       const response = await fetch(`${API_URL}/api/offer`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           sdp: offer.sdp,
@@ -810,16 +814,16 @@ const VideoStream = () => {
           user_id: user.id,
           shop_id: shopId,
           stream_metadata: {
-            stream_name: 'CCTV Camera 1',
-            camera_id: 'cam-001',
-            location: 'Entrance',
+            stream_name: "CCTV Camera 1",
+            camera_id: "cam-001",
+            location: "Entrance",
           },
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to connect');
+        throw new Error(errorData.detail || "Failed to connect");
       }
 
       const answer = await response.json();
@@ -833,9 +837,9 @@ const VideoStream = () => {
         })
       );
 
-      console.log('WebRTC connection established');
+      console.log("WebRTC connection established");
     } catch (err) {
-      console.error('WebRTC error:', err);
+      console.error("WebRTC error:", err);
       setError(err.message);
     }
   };
@@ -852,7 +856,7 @@ const VideoStream = () => {
         autoPlay
         playsInline
         muted
-        style={{ width: '100%', maxWidth: '640px' }}
+        style={{ width: "100%", maxWidth: "640px" }}
       />
     </div>
   );
@@ -868,8 +872,8 @@ export default VideoStream;
 ### WebSocket Anomaly Alerts (`src/hooks/useAnomalyAlerts.js`)
 
 ```javascript
-import { useEffect, useRef, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 export const useAnomalyAlerts = () => {
   const { user, accessToken } = useAuth();
@@ -877,7 +881,7 @@ export const useAnomalyAlerts = () => {
   const [alerts, setAlerts] = useState([]);
   const [connected, setConnected] = useState(false);
 
-  const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
+  const WS_URL = process.env.REACT_APP_WS_URL || "ws://localhost:8000";
 
   useEffect(() => {
     if (!user || !accessToken) return;
@@ -888,16 +892,16 @@ export const useAnomalyAlerts = () => {
     );
 
     ws.onopen = () => {
-      console.log('WebSocket connected');
+      console.log("WebSocket connected");
       setConnected(true);
     };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      if (data.type === 'anomaly_detected') {
-        console.log('Anomaly detected:', data);
-        
+      if (data.type === "anomaly_detected") {
+        console.log("Anomaly detected:", data);
+
         // Add to alerts list
         setAlerts((prev) => [
           {
@@ -914,7 +918,7 @@ export const useAnomalyAlerts = () => {
         // Send acknowledgment
         ws.send(
           JSON.stringify({
-            type: 'ack',
+            type: "ack",
             stream_id: data.stream_id,
           })
         );
@@ -922,11 +926,11 @@ export const useAnomalyAlerts = () => {
     };
 
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error("WebSocket error:", error);
     };
 
     ws.onclose = () => {
-      console.log('WebSocket disconnected');
+      console.log("WebSocket disconnected");
       setConnected(false);
     };
 
@@ -951,8 +955,8 @@ export const useAnomalyAlerts = () => {
 ### Anomaly Alerts Component (`src/components/AnomalyAlerts.jsx`)
 
 ```jsx
-import React from 'react';
-import { useAnomalyAlerts } from '../hooks/useAnomalyAlerts';
+import React from "react";
+import { useAnomalyAlerts } from "../hooks/useAnomalyAlerts";
 
 const AnomalyAlerts = () => {
   const { alerts, connected, clearAlerts } = useAnomalyAlerts();
@@ -961,12 +965,10 @@ const AnomalyAlerts = () => {
     <div className="anomaly-alerts">
       <div className="alerts-header">
         <h3>Anomaly Alerts</h3>
-        <span className={`status ${connected ? 'connected' : 'disconnected'}`}>
-          {connected ? '● Connected' : '○ Disconnected'}
+        <span className={`status ${connected ? "connected" : "disconnected"}`}>
+          {connected ? "● Connected" : "○ Disconnected"}
         </span>
-        {alerts.length > 0 && (
-          <button onClick={clearAlerts}>Clear All</button>
-        )}
+        {alerts.length > 0 && <button onClick={clearAlerts}>Clear All</button>}
       </div>
 
       <div className="alerts-list">
@@ -1010,28 +1012,28 @@ export default AnomalyAlerts;
 ### Create Shop Form (`src/components/CreateShop.jsx`)
 
 ```jsx
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { shopService } from '../api/shopService';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { shopService } from "../api/shopService";
 
 const CreateShop = () => {
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const [managerEmails, setManagerEmails] = useState('');
-  const [error, setError] = useState('');
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [managerEmails, setManagerEmails] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
       // Parse comma-separated emails
       const emailList = managerEmails
-        .split(',')
+        .split(",")
         .map((email) => email.trim())
         .filter((email) => email);
 
@@ -1041,9 +1043,9 @@ const CreateShop = () => {
         assigned_manager_emails: emailList,
       });
 
-      navigate('/my-shops');
+      navigate("/my-shops");
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create shop');
+      setError(err.response?.data?.detail || "Failed to create shop");
     } finally {
       setLoading(false);
     }
@@ -1091,9 +1093,9 @@ const CreateShop = () => {
 
         <div className="form-actions">
           <button type="submit" disabled={loading}>
-            {loading ? 'Creating...' : 'Create Shop'}
+            {loading ? "Creating..." : "Create Shop"}
           </button>
-          <button type="button" onClick={() => navigate('/my-shops')}>
+          <button type="button" onClick={() => navigate("/my-shops")}>
             Cancel
           </button>
         </div>
@@ -1113,10 +1115,10 @@ export default CreateShop;
 
 ```javascript
 // Option 1: localStorage (survives page refresh)
-localStorage.setItem('access_token', token);
+localStorage.setItem("access_token", token);
 
 // Option 2: sessionStorage (cleared on tab close)
-sessionStorage.setItem('access_token', token);
+sessionStorage.setItem("access_token", token);
 
 // Option 3: Memory only (most secure, lost on refresh)
 // Store in React state/context only
@@ -1135,20 +1137,20 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        const response = await axios.post('/auth/refresh', {
+        const refreshToken = localStorage.getItem("refresh_token");
+        const response = await axios.post("/auth/refresh", {
           refresh_token: refreshToken,
         });
 
         const { access_token } = response.data;
-        localStorage.setItem('access_token', access_token);
+        localStorage.setItem("access_token", access_token);
 
         originalRequest.headers.Authorization = `Bearer ${access_token}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
         // Refresh failed, logout user
         localStorage.clear();
-        window.location.href = '/login';
+        window.location.href = "/login";
         return Promise.reject(refreshError);
       }
     }
@@ -1163,9 +1165,9 @@ apiClient.interceptors.response.use(
 ```javascript
 // Ensure WebSocket uses wss:// in production
 const WS_URL =
-  process.env.NODE_ENV === 'production'
-    ? 'wss://your-domain.com'
-    : 'ws://localhost:8000';
+  process.env.NODE_ENV === "production"
+    ? "wss://your-domain.com"
+    : "ws://localhost:8000";
 ```
 
 ---
@@ -1201,10 +1203,10 @@ curl -X POST http://localhost:8000/shops \
 ```javascript
 // In browser console
 const ws = new WebSocket(
-  'ws://localhost:8000/ws/alerts/YOUR_USER_ID?token=YOUR_ACCESS_TOKEN'
+  "ws://localhost:8000/ws/alerts/YOUR_USER_ID?token=YOUR_ACCESS_TOKEN"
 );
-ws.onopen = () => console.log('Connected');
-ws.onmessage = (e) => console.log('Message:', JSON.parse(e.data));
+ws.onopen = () => console.log("Connected");
+ws.onmessage = (e) => console.log("Message:", JSON.parse(e.data));
 ```
 
 ---
@@ -1214,11 +1216,13 @@ ws.onmessage = (e) => console.log('Message:', JSON.parse(e.data));
 ### Common Issues
 
 1. **401 Unauthorized on Protected Endpoints**
+
    - Check token is included in Authorization header
    - Verify token hasn't expired
    - Ensure user has correct permissions
 
 2. **WebSocket Connection Fails**
+
    - Verify token is passed as query parameter
    - Check CORS settings allow WebSocket connections
    - Ensure user_id matches authenticated user

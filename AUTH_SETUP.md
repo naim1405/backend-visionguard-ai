@@ -75,6 +75,7 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 ```
 
 **Important Security Notes:**
+
 - Generate a strong JWT_SECRET_KEY for production
 - Never commit .env file to version control
 - Add .env to .gitignore
@@ -171,11 +172,13 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ### Test Database Connection
 
 The server should log on startup:
+
 ```
 ✓ Database initialized successfully
 ```
 
 If you see errors, check:
+
 - PostgreSQL is running
 - Database exists
 - DATABASE_URL is correct
@@ -194,6 +197,7 @@ curl -X POST http://localhost:8000/auth/register-owner `
 ```
 
 Expected response:
+
 ```json
 {
   "access_token": "eyJhbGc...",
@@ -250,6 +254,7 @@ Once the server is running:
 - **ReDoc**: http://localhost:8000/redoc
 
 You can test all endpoints interactively:
+
 1. Click "Authorize" button
 2. Enter token in format: `Bearer YOUR_ACCESS_TOKEN`
 3. Test any endpoint
@@ -313,31 +318,31 @@ CREATE INDEX idx_shop_manager_lookup ON shop_managers(shop_id, manager_id);
 
 ### Authentication
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/auth/register-owner` | Register new owner | No |
-| POST | `/auth/register-manager` | Register new manager | No |
-| POST | `/auth/login` | Login user | No |
-| GET | `/auth/me` | Get current user | Yes |
-| POST | `/auth/logout` | Logout user | Yes |
+| Method | Endpoint                 | Description          | Auth Required |
+| ------ | ------------------------ | -------------------- | ------------- |
+| POST   | `/auth/register-owner`   | Register new owner   | No            |
+| POST   | `/auth/register-manager` | Register new manager | No            |
+| POST   | `/auth/login`            | Login user           | No            |
+| GET    | `/auth/me`               | Get current user     | Yes           |
+| POST   | `/auth/logout`           | Logout user          | Yes           |
 
 ### Shops
 
-| Method | Endpoint | Description | Auth Required | Role |
-|--------|----------|-------------|---------------|------|
-| POST | `/shops` | Create shop | Yes | OWNER |
-| GET | `/shops` | Get all accessible shops | Yes | Both |
-| GET | `/shops/{id}` | Get shop details | Yes | Both |
-| PUT | `/shops/{id}` | Update shop | Yes | OWNER |
-| DELETE | `/shops/{id}` | Delete shop | Yes | OWNER |
-| GET | `/shops/{id}/managers` | Get shop managers | Yes | Both |
+| Method | Endpoint               | Description              | Auth Required | Role  |
+| ------ | ---------------------- | ------------------------ | ------------- | ----- |
+| POST   | `/shops`               | Create shop              | Yes           | OWNER |
+| GET    | `/shops`               | Get all accessible shops | Yes           | Both  |
+| GET    | `/shops/{id}`          | Get shop details         | Yes           | Both  |
+| PUT    | `/shops/{id}`          | Update shop              | Yes           | OWNER |
+| DELETE | `/shops/{id}`          | Delete shop              | Yes           | OWNER |
+| GET    | `/shops/{id}/managers` | Get shop managers        | Yes           | Both  |
 
 ### WebRTC & WebSocket (Now Protected)
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/offer` | WebRTC signaling | Yes |
-| WS | `/ws/alerts/{user_id}?token=XXX` | WebSocket alerts | Yes |
+| Method | Endpoint                         | Description      | Auth Required |
+| ------ | -------------------------------- | ---------------- | ------------- |
+| POST   | `/api/offer`                     | WebRTC signaling | Yes           |
+| WS     | `/ws/alerts/{user_id}?token=XXX` | WebSocket alerts | Yes           |
 
 ---
 
@@ -346,6 +351,7 @@ CREATE INDEX idx_shop_manager_lookup ON shop_managers(shop_id, manager_id);
 ### Issue: Database connection failed
 
 **Solution:**
+
 ```powershell
 # Check PostgreSQL is running
 Get-Service postgresql*
@@ -360,6 +366,7 @@ psql -U postgres -d visionguard_db
 ### Issue: Alembic migration errors
 
 **Solution:**
+
 ```powershell
 # Reset database (WARNING: deletes all data)
 alembic downgrade base
@@ -377,6 +384,7 @@ alembic upgrade head
 ### Issue: Import errors for new modules
 
 **Solution:**
+
 ```powershell
 # Reinstall requirements
 pip install -r requirements.txt --upgrade
@@ -385,6 +393,7 @@ pip install -r requirements.txt --upgrade
 ### Issue: JWT token invalid/expired
 
 **Solution:**
+
 - Tokens expire after 60 minutes (configurable)
 - Login again to get new token
 - Implement token refresh logic in frontend
@@ -398,7 +407,7 @@ pip install -r requirements.txt --upgrade
 - [ ] Set DEBUG_MODE=False
 - [ ] Use HTTPS for all connections
 - [ ] Use wss:// for WebSocket connections
-- [ ] Configure proper CORS origins (not *)
+- [ ] Configure proper CORS origins (not \*)
 - [ ] Set up database backups
 - [ ] Use production-grade PostgreSQL server
 - [ ] Implement rate limiting on auth endpoints
@@ -461,11 +470,13 @@ alembic history --verbose
 ### Password Requirements
 
 Implemented in backend:
+
 - Minimum 8 characters
 - Hashed with bcrypt (automatic salt)
 - Never stored in plain text
 
 Frontend should enforce:
+
 - Mix of uppercase, lowercase, numbers, symbols
 - Common password checking
 - Password strength indicator
@@ -493,6 +504,7 @@ Frontend should enforce:
 ### Check Application Logs
 
 Server logs show:
+
 - User registrations
 - Login attempts
 - Shop creations
@@ -537,6 +549,7 @@ JOIN users u ON sm.manager_id = u.id;
 ## Support
 
 For issues or questions:
+
 - Check logs for error messages
 - Review API documentation at /docs
 - Verify database connections

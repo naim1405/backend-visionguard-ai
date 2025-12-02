@@ -11,7 +11,7 @@ This repository now includes a **complete authentication and authorization syste
 ✅ Shop management with multi-user support  
 ✅ Protected WebRTC and WebSocket endpoints  
 ✅ PostgreSQL database with migrations  
-✅ Production-ready security  
+✅ Production-ready security
 
 ---
 
@@ -46,6 +46,7 @@ cp .env.example .env
 ```
 
 Edit `.env`:
+
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/visionguard_db
 JWT_SECRET_KEY=your-super-secret-key-change-this
@@ -72,6 +73,7 @@ Server will start at: **http://localhost:8000**
 ## 📚 Documentation
 
 ### For Backend Setup
+
 - **[AUTH_SETUP.md](AUTH_SETUP.md)** - Complete setup guide
   - PostgreSQL configuration
   - Environment variables
@@ -80,6 +82,7 @@ Server will start at: **http://localhost:8000**
   - Troubleshooting
 
 ### For Frontend Integration
+
 - **[frontendauth.md](frontendauth.md)** - Complete React/Next.js integration guide
   - Authentication context
   - API client setup
@@ -90,6 +93,7 @@ Server will start at: **http://localhost:8000**
   - WebSocket integration with auth
 
 ### Implementation Details
+
 - **[AUTH_IMPLEMENTATION.md](AUTH_IMPLEMENTATION.md)** - Complete implementation summary
   - All features implemented
   - Files created/modified
@@ -185,17 +189,20 @@ backend-visionguard-ai/
 ## 🔐 Security Features
 
 ### Password Security
+
 - ✅ bcrypt hashing with automatic salt
 - ✅ Minimum 8 character requirement
 - ✅ Never stored in plain text
 
 ### Token Security
+
 - ✅ JWT with HS256 algorithm
 - ✅ Access tokens expire in 60 minutes
 - ✅ Refresh tokens expire in 7 days
 - ✅ Includes user ID, email, and role
 
 ### API Security
+
 - ✅ Role-based access control
 - ✅ Shop-level permissions
 - ✅ Input validation with Pydantic
@@ -208,12 +215,14 @@ backend-visionguard-ai/
 ## 👥 User Roles
 
 ### OWNER
+
 - Create, update, delete shops
 - Assign managers to shops
 - Access all owned shops
 - View CCTV streams for owned shops
 
 ### MANAGER
+
 - View assigned shops only
 - Access CCTV streams for assigned shops
 - Cannot create or delete shops
@@ -224,6 +233,7 @@ backend-visionguard-ai/
 ## 🛣️ API Endpoints
 
 ### Authentication (`/auth`)
+
 - `POST /auth/register-owner` - Register new owner
 - `POST /auth/register-manager` - Register new manager
 - `POST /auth/login` - Login user
@@ -231,6 +241,7 @@ backend-visionguard-ai/
 - `POST /auth/logout` - Logout user
 
 ### Shops (`/shops`)
+
 - `POST /shops` - Create shop (OWNER only)
 - `GET /shops` - List accessible shops
 - `GET /shops/{id}` - Get shop details
@@ -239,6 +250,7 @@ backend-visionguard-ai/
 - `GET /shops/{id}/managers` - List shop managers
 
 ### WebRTC & WebSocket (Protected)
+
 - `POST /api/offer` - WebRTC signaling (requires auth & shop access)
 - `WS /ws/alerts/{user_id}?token=XXX` - WebSocket alerts (requires auth)
 
@@ -271,11 +283,13 @@ ALLOWED_ORIGINS=http://localhost:3000
 ## 🧪 Testing
 
 ### Run Tests (Future Enhancement)
+
 ```powershell
 pytest tests/
 ```
 
 ### Manual Testing
+
 1. Use Swagger UI at http://localhost:8000/docs
 2. Click "Authorize" button
 3. Enter token: `Bearer YOUR_ACCESS_TOKEN`
@@ -286,6 +300,7 @@ pytest tests/
 ## 🐛 Troubleshooting
 
 ### Database Connection Failed
+
 ```powershell
 # Check PostgreSQL is running
 Get-Service postgresql*
@@ -295,12 +310,14 @@ Start-Service postgresql-x64-XX
 ```
 
 ### Import Errors
+
 ```powershell
 # Reinstall dependencies
 pip install -r requirements.txt --upgrade
 ```
 
 ### Token Expired
+
 - Tokens expire after 60 minutes
 - Login again to get new token
 - Implement token refresh in production
@@ -310,6 +327,7 @@ pip install -r requirements.txt --upgrade
 ## 📦 Dependencies
 
 ### New Packages Added
+
 - `sqlalchemy` - ORM for database
 - `alembic` - Database migrations
 - `psycopg2-binary` - PostgreSQL driver
@@ -319,6 +337,7 @@ pip install -r requirements.txt --upgrade
 - `python-multipart` - Form data support
 
 ### Existing Packages
+
 All original VisionGuard AI dependencies remain unchanged.
 
 ---
@@ -326,11 +345,12 @@ All original VisionGuard AI dependencies remain unchanged.
 ## 🚀 Production Deployment
 
 ### Checklist
+
 - [ ] Strong JWT_SECRET_KEY (32+ chars)
 - [ ] DATABASE_URL with production credentials
 - [ ] DEBUG_MODE=False
 - [ ] HTTPS enabled
-- [ ] Specific CORS origins (not *)
+- [ ] Specific CORS origins (not \*)
 - [ ] Database backups configured
 - [ ] Environment variables secured
 - [ ] Rate limiting enabled
@@ -344,12 +364,14 @@ See [AUTH_SETUP.md](AUTH_SETUP.md) for complete production checklist.
 ## 📞 Support
 
 ### Resources
+
 - **API Documentation**: http://localhost:8000/docs
 - **Setup Guide**: [AUTH_SETUP.md](AUTH_SETUP.md)
 - **Frontend Guide**: [frontendauth.md](frontendauth.md)
 - **Implementation Details**: [AUTH_IMPLEMENTATION.md](AUTH_IMPLEMENTATION.md)
 
 ### Common Issues
+
 - Check logs for error messages
 - Verify PostgreSQL is running
 - Ensure environment variables are set
@@ -372,6 +394,6 @@ Same as original VisionGuard AI project.
 ✅ Multi-user shop support  
 ✅ Protected WebRTC/WebSocket  
 ✅ Production-ready security  
-✅ Complete documentation  
+✅ Complete documentation
 
 **Get started in 5 minutes with the Quick Start guide above!** 🚀
