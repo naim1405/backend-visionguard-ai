@@ -14,6 +14,7 @@ Real-time AI video processing with WebRTC streaming to React frontend.
 - [Testing](#testing)
 - [Project Structure](#project-structure)
 - [Future Enhancements](#future-enhancements)
+- [Additional Documentation](#additional-documentation)
 
 ## 🎯 Overview
 
@@ -642,3 +643,16 @@ For issues and questions:
 ---
 
 **Built with ❤️ using FastAPI and aiortc**
+
+## 📖 Additional Documentation
+
+For more detailed information, please refer to the following documentation files in the `doc/` folder:
+
+- **[API Documentation](doc/API_DOCUMENTATION.md)** - Detailed API reference and examples
+- **[Environment Setup](doc/ENVIRONMENT_SETUP.md)** - Step-by-step environment configuration
+- **[How to Run](doc/HOW_TO_RUN.md)** - Detailed instructions for running the application
+- **[Model Optimization](doc/MODEL_OPTIMIZATION.md)** - AI model optimization techniques
+- **[WebRTC Architecture](doc/WEBRTC_WEBSOCKET_ARCHITECTURE.md)** - WebRTC and WebSocket implementation details
+- **[Import Fix Applied](doc/IMPORT_FIX_APPLIED.md)** - Documentation of import fixes
+- **[Files to Delete](doc/FILES_TO_DELETE.md)** - Cleanup and maintenance guide
+
