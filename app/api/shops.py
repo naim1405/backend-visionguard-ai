@@ -433,3 +433,41 @@ async def get_shop_managers(
             email=m.email
         ) for m in managers
     ]
+
+
+@router.post(
+    "/check-manager-email",
+    response_model=dict,
+    summary="Check if email has manager account",
+    description="Verify if an email is registered with MANAGER role"
+)
+async def check_manager_email(
+    request: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Check if an email exists with MANAGER role
+    
+    Returns:
+    - exists: boolean indicating if the email exists as a manager
+    - email: the email that was checked
+    """
+    email = request.get('email')
+    
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is required"
+        )
+    
+    # Check if user exists with MANAGER role
+    manager = db.query(User).filter(
+        User.email == email,
+        User.role == UserRole.MANAGER
+    ).first()
+    
+    return {
+        "exists": manager is not None,
+        "email": email
+    }
