@@ -9,7 +9,7 @@ from enum import Enum as PyEnum
 from sqlalchemy import (
     Column, String, DateTime, ForeignKey, Enum, Index, UniqueConstraint, Text
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -72,6 +72,7 @@ class Shop(Base):
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     address = Column(Text, nullable=True)
+    cameras = Column(ARRAY(String), nullable=True, default=list)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
