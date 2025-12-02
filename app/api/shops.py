@@ -12,10 +12,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from sqlalchemy.orm import Session
 
-from database import get_db
-from models import User, UserRole, Shop, ShopManager
-from auth_dependencies import get_current_user, require_owner, verify_shop_access
-from auth_utils import hash_password
+from app.db import get_db
+from app.models import User, UserRole, Shop, ShopManager
+from app.core.dependencies import get_current_user, require_owner, verify_shop_access
+from app.core.auth import hash_password
 
 # Configure logging
 logger = logging.getLogger(__name__)

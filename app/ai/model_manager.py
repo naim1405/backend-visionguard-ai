@@ -5,9 +5,9 @@ Loads models once at startup and shares them across all streams
 
 import logging
 from typing import Optional
-from detection.person_detector import PersonDetector
-from detection.anomaly_detector import AnomalyDetector
-from config import (
+from app.ai.detection.person_detector import PersonDetector
+from app.ai.detection.anomaly_detector import AnomalyDetector
+from app.config import (
     YOLO_MODEL_PATH,
     POSE_MODEL_PATH,
     ANOMALY_MODEL_PATH,

@@ -13,9 +13,9 @@ import cv2
 import numpy as np
 
 # Import authentication
-from database import SessionLocal
-from models import User
-from auth_utils import verify_token
+from app.db import SessionLocal
+from app.models import User
+from app.core.auth import verify_token
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

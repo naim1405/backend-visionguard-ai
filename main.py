@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, ConfigDict
 import json
 
 # Import configuration
-from config import (
+from app.config import (
     APP_NAME,
     APP_VERSION,
     APP_DESCRIPTION,
@@ -27,23 +27,23 @@ from fastapi.exceptions import RequestValidationError
 from fastapi import Request, status
 
 # Import signaling router
-from signaling import router as signaling_router, cleanup_all_connections
+from app.api.signaling import router as signaling_router, cleanup_all_connections
 
 # Import WebSocket handler
-from websocket_handler import router as websocket_router
+from app.api.websocket import router as websocket_router
 
 # Import session manager
-from session_manager import get_session_manager
+from app.utils.session_manager import get_session_manager
 
 # Import model manager
-from model_manager import get_model_manager
+from app.ai.model_manager import get_model_manager
 
 # Import database
-from database import init_db
+from app.db import init_db
 
 # Import auth and shop routers
-from auth_routes import router as auth_router
-from shop_routes import router as shop_router
+from app.api.auth import router as auth_router
+from app.api.shops import router as shop_router
 
 # Configure logging
 logging.basicConfig(
@@ -534,7 +534,7 @@ async def get_info():
     Returns:
         dict: Service configuration and capabilities
     """
-    from config import (
+    from app.config import (
         TARGET_FPS,
         DEFAULT_WIDTH,
         DEFAULT_HEIGHT,
@@ -644,7 +644,7 @@ async def internal_error_handler(request, exc):
 
 if __name__ == "__main__":
     import uvicorn
-    from config import SERVER_HOST, SERVER_PORT, DEBUG_MODE
+    from app.config import SERVER_HOST, SERVER_PORT, DEBUG_MODE
 
     logger.info("Starting server with uvicorn...")
 

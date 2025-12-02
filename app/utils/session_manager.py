@@ -11,7 +11,7 @@ from dataclasses import dataclass, asdict
 from aiortc import RTCPeerConnection
 from fastapi import WebSocket
 
-from websocket_processor import WebSocketAnomalyProcessor
+from app.ai.processors.websocket_processor import WebSocketAnomalyProcessor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

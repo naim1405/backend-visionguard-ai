@@ -17,15 +17,15 @@ from av import VideoFrame
 from sqlalchemy.orm import Session
 
 # Import session manager and WebSocket manager
-from session_manager import get_session_manager
-from websocket_handler import get_websocket_manager
-from websocket_processor import WebSocketAnomalyProcessor
-from config import get_rtc_configuration
+from app.utils.session_manager import get_session_manager
+from app.api.websocket import get_websocket_manager
+from app.ai.processors.websocket_processor import WebSocketAnomalyProcessor
+from app.config import get_rtc_configuration
 
 # Import authentication dependencies
-from database import get_db
-from models import User, Shop
-from auth_dependencies import get_current_user, verify_shop_access
+from app.db import get_db
+from app.models import User, Shop
+from app.core.dependencies import get_current_user, verify_shop_access
 from uuid import UUID as PyUUID
 
 # Configure logging
