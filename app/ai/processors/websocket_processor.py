@@ -141,6 +141,10 @@ class WebSocketAnomalyProcessor:
                     result['stream_id'] = self.stream_id
                     result['user_id'] = self.user_id
                     
+                    # Store pose_dict for reinforcement learning
+                    # This will be used to retrain the model based on user feedback
+                    result['pose_dict'] = pose_dict
+                    
                     # Get bounding box from tracking data
                     person_id = result['person_id']
                     if person_id in tracking_data:

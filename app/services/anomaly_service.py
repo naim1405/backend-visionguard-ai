@@ -13,6 +13,7 @@ from typing import Dict, Optional
 from sqlalchemy.orm import Session
 
 from app.models.anomaly import Anomaly, AnomalyStatus, AnomalySeverity
+from app.models.training_data import AnomalyTrainingData
 from app.config import BASE_DIR
 
 # Configure logging
@@ -259,3 +260,147 @@ class AnomalyService:
             return None
         # Return URL that will be served by the API endpoint
         return f"/api/anomalies/frames/{image_path}"
+    
+    @staticmethod
+    def save_training_data(
+        db: Session,
+        anomaly_id: uuid.UUID,
+        pose_dict: Dict,
+        stream_id: str,
+        frame_number: float,
+        predicted_score: float,
+        predicted_confidence: str,
+        predicted_label: Optional[str] = None,
+        extra_metadata: Optional[Dict] = None
+    ) -> Optional[AnomalyTrainingData]:
+        """
+        Save pose_dict and prediction data for reinforcement learning
+        
+        Args:
+            db: Database session
+            anomaly_id: Associated anomaly UUID
+            pose_dict: The pose dictionary from frame_buffer (input to anomaly detector)
+            stream_id: Stream identifier
+            frame_number: Frame number
+            predicted_score: Anomaly score from model
+            predicted_confidence: Confidence level ("High", "Medium", "Low")
+            predicted_label: Classification label if available
+            extra_metadata: Additional metadata (bbox, tracking_data, etc.)
+            
+        Returns:
+            Created AnomalyTrainingData object or None if failed
+        """
+        try:
+            training_data = AnomalyTrainingData(
+                anomaly_id=anomaly_id,
+                pose_dict=pose_dict,
+                stream_id=stream_id,
+                frame_number=frame_number,
+                predicted_score=predicted_score,
+                predicted_confidence=predicted_confidence,
+                predicted_label=predicted_label,
+                extra_metadata=extra_metadata
+            )
+            
+            db.add(training_data)
+            db.commit()
+            db.refresh(training_data)
+            
+            logger.info(
+                f"Saved training data: {training_data.id} "
+                f"(anomaly={anomaly_id}, stream={stream_id}, frame={frame_number})"
+            )
+            
+            return training_data
+            
+        except Exception as e:
+            logger.error(f"Error saving training data: {e}", exc_info=True)
+            db.rollback()
+            return None
+    
+    @staticmethod
+    def update_training_data_feedback(
+        db: Session,
+        training_data_id: uuid.UUID,
+        user_feedback: str,
+        labeled_by: uuid.UUID,
+        user_label: Optional[str] = None,
+        user_notes: Optional[str] = None
+    ) -> Optional[AnomalyTrainingData]:
+        """
+        Update training data with user feedback for reinforcement learning
+        
+        Args:
+            db: Database session
+            training_data_id: Training data UUID
+            user_feedback: User feedback ("true_positive", "false_positive", "uncertain")
+            labeled_by: User ID who provided feedback
+            user_label: User's classification/label
+            user_notes: Additional notes
+            
+        Returns:
+            Updated AnomalyTrainingData object or None if not found
+        """
+        try:
+            training_data = db.query(AnomalyTrainingData).filter(
+                AnomalyTrainingData.id == training_data_id
+            ).first()
+            
+            if not training_data:
+                logger.warning(f"Training data not found: {training_data_id}")
+                return None
+            
+            training_data.user_feedback = user_feedback
+            training_data.labeled_by = labeled_by
+            training_data.labeled_at = datetime.utcnow()
+            
+            if user_label:
+                training_data.user_label = user_label
+            if user_notes:
+                training_data.user_notes = user_notes
+            
+            db.commit()
+            db.refresh(training_data)
+            
+            logger.info(
+                f"Updated training data {training_data_id} with feedback: {user_feedback}"
+            )
+            return training_data
+            
+        except Exception as e:
+            logger.error(f"Error updating training data feedback: {e}", exc_info=True)
+            db.rollback()
+            return None
+    
+    @staticmethod
+    def get_training_data_for_retraining(
+        db: Session,
+        user_feedback: Optional[str] = None,
+        used_for_training: bool = False,
+        limit: int = 1000,
+        offset: int = 0
+    ) -> list[AnomalyTrainingData]:
+        """
+        Get training data for model retraining
+        
+        Args:
+            db: Database session
+            user_feedback: Filter by user feedback
+            used_for_training: Filter by training status
+            limit: Maximum number of results
+            offset: Offset for pagination
+            
+        Returns:
+            List of AnomalyTrainingData objects
+        """
+        query = db.query(AnomalyTrainingData)
+        
+        if user_feedback:
+            query = query.filter(AnomalyTrainingData.user_feedback == user_feedback)
+        
+        query = query.filter(AnomalyTrainingData.used_for_training == used_for_training)
+        query = query.order_by(AnomalyTrainingData.created_at.desc())
+        query = query.limit(limit).offset(offset)
+        
+        return query.all()
+

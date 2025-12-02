@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.utils.session_manager import get_session_manager
 from app.api.websocket import get_websocket_manager
 from app.ai.processors.websocket_processor import WebSocketAnomalyProcessor
+from app.services.anomaly_service import AnomalyService
 from app.config import get_rtc_configuration
 
 # Import authentication dependencies
@@ -263,6 +264,32 @@ async def process_video_track(
                         
                         if anomaly:
                             logger.info(f"[{user_id}/{stream_id}] Saved anomaly to database: {anomaly.id}")
+                            
+                            # Save pose_dict for reinforcement learning
+                            pose_dict = result.get('pose_dict')
+                            if pose_dict:
+                                training_data = AnomalyService.save_training_data(
+                                    db=db,
+                                    anomaly_id=anomaly.id,
+                                    pose_dict=pose_dict,
+                                    stream_id=stream_id,
+                                    frame_number=result.get('frame_number', 0),
+                                    predicted_score=result.get('score', 0.0),
+                                    predicted_confidence=result.get('confidence', 'Unknown'),
+                                    predicted_label=result.get('classification'),
+                                    extra_metadata={
+                                        'person_id': result.get('person_id'),
+                                        'bbox': result.get('bbox')
+                                    }
+                                )
+                                if training_data:
+                                    logger.info(
+                                        f"[{user_id}/{stream_id}] Saved training data for reinforcement learning: {training_data.id}"
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"[{user_id}/{stream_id}] Failed to save training data"
+                                    )
                             
                             # Send notification message for frontend popup
                             notification_msg = {
