@@ -45,6 +45,7 @@ from app.db import init_db
 from app.api.auth import router as auth_router
 from app.api.shops import router as shop_router
 from app.api.notifications import router as notification_router
+from app.api.anomalies import router as anomaly_router
 
 # Configure logging
 logging.basicConfig(
@@ -367,6 +368,10 @@ logger.info("✓ Shop management router included at /shops")
 # Include notification router
 app.include_router(notification_router)
 logger.info("✓ Notification router included at /api/notifications")
+
+# Include anomaly router
+app.include_router(anomaly_router)
+logger.info("✓ Anomaly router included at /api/anomalies")
 
 
 # ============================================================================

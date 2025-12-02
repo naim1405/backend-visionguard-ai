@@ -117,13 +117,14 @@ class HealthResponse(BaseModel):
 # ============================================================================
 
 
-def create_peer_connection(user_id: str, stream_id: str) -> RTCPeerConnection:
+def create_peer_connection(user_id: str, stream_id: str, shop_id: str) -> RTCPeerConnection:
     """
-    Create a new RTCPeerConnection with proper configuration
+    Create and configure an RTCPeerConnection with event handlers
 
     Args:
         user_id (str): User identifier
         stream_id (str): Unique stream identifier
+        shop_id (str): Shop identifier for this stream
 
     Returns:
         RTCPeerConnection: Configured peer connection
@@ -177,8 +178,9 @@ def create_peer_connection(user_id: str, stream_id: str) -> RTCPeerConnection:
             session_mgr = get_session_manager()
             ws_manager = get_websocket_manager()
             
-            # Start async task to process video frames
-            asyncio.create_task(process_video_track(user_id, stream_id, track, processor, ws_manager))
+            # Store shop_id in a way that process_video_track can access it
+            # We'll pass it as a parameter
+            asyncio.create_task(process_video_track(user_id, stream_id, track, processor, ws_manager, shop_id))
 
     return pc
 
@@ -188,7 +190,8 @@ async def process_video_track(
     stream_id: str,
     track: MediaStreamTrack,
     processor: WebSocketAnomalyProcessor,
-    ws_manager
+    ws_manager,
+    shop_id: str
 ):
     """
     Process video frames from WebRTC track
@@ -199,8 +202,13 @@ async def process_video_track(
         track: Video track from frontend
         processor: Frame processor instance
         ws_manager: WebSocket manager for sending alerts
+        shop_id: Shop identifier for this stream
     """
-    logger.info(f"[{user_id}/{stream_id}] Video track processing started")
+    from app.db import SessionLocal
+    from app.services.anomaly_service import AnomalyService
+    from uuid import UUID as PyUUID
+    
+    logger.info(f"[{user_id}/{stream_id}] Video track processing started (shop: {shop_id})")
     
     try:
         while True:
@@ -210,7 +218,7 @@ async def process_video_track(
             # Process frame for anomaly detection
             results = await processor.process_frame(frame)
             
-            # If anomalies detected, send alert via WebSocket
+            # If anomalies detected, send alert via WebSocket and save to database
             if results:
                 # Convert frame to numpy for annotation
                 frame_np = frame.to_ndarray(format="bgr24")
@@ -220,12 +228,72 @@ async def process_video_track(
                 
                 # Send each anomaly result
                 for result in results:
+                    # Send alert via WebSocket
                     await ws_manager.send_anomaly_alert(
                         user_id=user_id,
                         stream_id=stream_id,
                         detection_result=result,
                         annotated_frame=annotated_frame
                     )
+                    
+                    # Save anomaly to database
+                    db = None
+                    try:
+                        db = SessionLocal()
+                        
+                        # Get stream metadata for location
+                        stream_metadata = result.get('stream_metadata', {})
+                        location = stream_metadata.get('location', stream_metadata.get('camera_id', f'Stream {stream_id[:8]}'))
+                        
+                        # Create description
+                        person_id = result.get('person_id', 'Unknown')
+                        confidence = result.get('confidence', 'Unknown')
+                        description = f"Anomalous behavior detected (Person ID: {person_id}, Confidence: {confidence})"
+                        
+                        # Save to database
+                        anomaly = AnomalyService.create_anomaly(
+                            db=db,
+                            shop_id=PyUUID(shop_id),
+                            location=location,
+                            description=description,
+                            frame=annotated_frame,
+                            detection_result=result,
+                            anomaly_type="suspicious_behavior"
+                        )
+                        
+                        if anomaly:
+                            logger.info(f"[{user_id}/{stream_id}] Saved anomaly to database: {anomaly.id}")
+                            
+                            # Send notification message for frontend popup
+                            notification_msg = {
+                                'type': 'notification',
+                                'data': {
+                                    'notification_id': str(anomaly.id),
+                                    'title': f'{anomaly.severity.value.upper()} Priority Alert',
+                                    'message': f'{anomaly.description} at {location}',
+                                    'priority': anomaly.severity.value,
+                                    'type': 'alert',
+                                    'timestamp': anomaly.timestamp.isoformat(),
+                                    'metadata': {
+                                        'anomaly_id': str(anomaly.id),
+                                        'shop_id': str(shop_id),
+                                        'stream_id': stream_id,
+                                        'person_id': result.get('person_id'),
+                                        'confidence': result.get('confidence')
+                                    },
+                                    'action_url': f'/suspicious-activity?anomaly_id={anomaly.id}'
+                                }
+                            }
+                            await ws_manager.send_message(user_id, notification_msg)
+                            logger.info(f"[{user_id}/{stream_id}] Sent notification popup for anomaly {anomaly.id}")
+                        else:
+                            logger.error(f"[{user_id}/{stream_id}] Failed to save anomaly to database")
+                            
+                    except Exception as e:
+                        logger.error(f"[{user_id}/{stream_id}] Error saving anomaly to database: {e}", exc_info=True)
+                    finally:
+                        if db:
+                            db.close()
                     
     except Exception as e:
         if "closed" in str(e).lower() or "ended" in str(e).lower():
@@ -234,7 +302,6 @@ async def process_video_track(
             logger.error(f"[{user_id}/{stream_id}] Error processing video track: {e}", exc_info=True)
     finally:
         logger.info(f"[{user_id}/{stream_id}] Video track processing stopped")
-        # Cleanup will be handled by connection state change
 
 
 async def cleanup_stream(stream_id: str):
@@ -363,7 +430,7 @@ async def handle_offer(
         session_mgr = get_session_manager()
 
         # Create peer connection
-        pc = create_peer_connection(user_id, stream_id)
+        pc = create_peer_connection(user_id, stream_id, offer.shop_id)
         logger.info(f"[{user_id}/{stream_id}] Created peer connection")
 
         # Set remote description (client's offer)

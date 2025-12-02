@@ -5,6 +5,14 @@ Contains all constants and configuration settings for WebRTC streaming
 
 import os
 from typing import List
+from pathlib import Path
+
+# ============================================================================
+# BASE DIRECTORIES
+# ============================================================================
+
+# Base directory of the application
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ============================================================================
 # VIDEO CONFIGURATION
