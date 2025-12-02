@@ -1,0 +1,17 @@
+[
+	{
+		"id": 1,
+		"title": "Sample 1",
+		"filePath": "./assets/sample1.mp4"
+	},
+	{
+		"id": 2,
+		"title": "Sample 2",
+		"filePath": "./assets/sample2.mp4"
+	},
+	{
+		"id": 3,
+		"title": "Sample 3",
+		"filePath": "./assets/sample3.mp4"
+	}
+]
