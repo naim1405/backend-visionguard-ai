@@ -22,6 +22,10 @@ from config import (
     VIDEO_FILE_PATH,
 )
 
+# Import for validation error handling
+from fastapi.exceptions import RequestValidationError
+from fastapi import Request, status
+
 # Import signaling router
 from signaling import router as signaling_router, cleanup_all_connections
 
@@ -576,6 +580,30 @@ def video_data():
 # ============================================================================
 # Error Handlers
 # ============================================================================
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Custom validation error handler to provide detailed error messages
+    """
+    errors = []
+    for error in exc.errors():
+        errors.append({
+            "field": " -> ".join(str(x) for x in error["loc"]),
+            "message": error["msg"],
+            "type": error["type"],
+        })
+    
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "error": "Validation Error",
+            "message": "Request validation failed",
+            "details": errors,
+            "body_received": exc.body if hasattr(exc, 'body') else None,
+        },
+    )
 
 
 @app.exception_handler(404)
