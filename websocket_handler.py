@@ -5,11 +5,17 @@ Manages WebSocket connections for sending anomaly detection results
 
 import json
 import logging
-from typing import Dict
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from typing import Dict, Optional
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPException
+from sqlalchemy.orm import Session
 import base64
 import cv2
 import numpy as np
+
+# Import authentication
+from database import SessionLocal
+from models import User
+from auth_utils import verify_token
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -148,17 +154,57 @@ ws_manager = WebSocketManager()
 
 
 @router.websocket("/alerts/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, user_id: str):
+async def websocket_endpoint(
+    websocket: WebSocket,
+    user_id: str,
+    token: Optional[str] = Query(None, description="JWT authentication token")
+):
     """
-    WebSocket endpoint for receiving anomaly alerts
+    WebSocket endpoint for receiving anomaly alerts (Protected)
     
-    Frontend should connect to this endpoint using the user_id.
+    Frontend should connect to this endpoint using the user_id and provide a valid JWT token.
     All anomaly alerts from all of the user's streams will be sent here.
+    
+    **Authentication Required**: Must provide valid JWT token as query parameter.
+    
+    Example connection:
+        ws://localhost:8000/ws/alerts/{user_id}?token=YOUR_JWT_TOKEN
     
     Args:
         websocket: WebSocket connection
         user_id: User identifier (should match user_id in WebRTC offer)
+        token: JWT authentication token (query parameter)
     """
+    # Authenticate user via token
+    if not token:
+        await websocket.close(code=1008, reason="Authentication token required")
+        return
+    
+    # Verify token
+    payload = verify_token(token)
+    if payload is None:
+        await websocket.close(code=1008, reason="Invalid or expired token")
+        return
+    
+    # Extract user ID from token and verify it matches
+    token_user_id = payload.get("sub")
+    if token_user_id != user_id:
+        await websocket.close(code=1008, reason="User ID mismatch")
+        return
+    
+    # Verify user exists
+    db = SessionLocal()
+    try:
+        from uuid import UUID
+        user = db.query(User).filter(User.id == UUID(token_user_id)).first()
+        if not user:
+            await websocket.close(code=1008, reason="User not found")
+            return
+    finally:
+        db.close()
+    
+    logger.info(f"[WS] Authenticated WebSocket connection for user: {user.email}")
+    
     await ws_manager.connect(user_id, websocket)
     
     try:
