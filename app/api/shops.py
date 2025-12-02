@@ -33,6 +33,10 @@ class CreateShopRequest(BaseModel):
     """Request model for creating a shop"""
     name: str = Field(..., min_length=2, max_length=255, description="Shop name")
     address: Optional[str] = Field(None, description="Shop address")
+    cameras: List[str] = Field(
+        default_factory=list,
+        description="List of camera URLs (RTSP, HTTP, etc.)"
+    )
     assigned_manager_emails: List[EmailStr] = Field(
         default_factory=list,
         description="List of manager emails to assign to this shop"
@@ -43,6 +47,7 @@ class CreateShopRequest(BaseModel):
             "example": {
                 "name": "Downtown Store",
                 "address": "123 Main St, City, State 12345",
+                "cameras": ["rtsp://camera1.example.com/stream", "rtsp://camera2.example.com/stream"],
                 "assigned_manager_emails": ["manager1@example.com", "manager2@example.com"]
             }
         }
@@ -53,6 +58,10 @@ class UpdateShopRequest(BaseModel):
     """Request model for updating a shop"""
     name: Optional[str] = Field(None, min_length=2, max_length=255, description="Shop name")
     address: Optional[str] = Field(None, description="Shop address")
+    cameras: Optional[List[str]] = Field(
+        None,
+        description="List of camera URLs (replaces existing cameras)"
+    )
     assigned_manager_emails: Optional[List[EmailStr]] = Field(
         None,
         description="List of manager emails (replaces existing assignments)"
@@ -63,6 +72,7 @@ class UpdateShopRequest(BaseModel):
             "example": {
                 "name": "Downtown Store - Updated",
                 "address": "456 New St, City, State 12345",
+                "cameras": ["rtsp://camera1.example.com/stream", "rtsp://camera3.example.com/stream"],
                 "assigned_manager_emails": ["manager1@example.com", "manager3@example.com"]
             }
         }
@@ -82,6 +92,7 @@ class ShopResponse(BaseModel):
     owner_id: str
     name: str
     address: Optional[str]
+    cameras: List[str]
     managers: List[ManagerInfo]
     created_at: str
     updated_at: str
@@ -93,6 +104,7 @@ class ShopResponse(BaseModel):
                 "owner_id": "987fcdeb-51a2-43d1-b789-123456789abc",
                 "name": "Downtown Store",
                 "address": "123 Main St, City, State 12345",
+                "cameras": ["rtsp://camera1.example.com/stream", "rtsp://camera2.example.com/stream"],
                 "managers": [
                     {
                         "id": "abc12345-6789-def0-1234-567890abcdef",
@@ -194,6 +206,7 @@ def build_shop_response(shop: Shop, db: Session) -> ShopResponse:
         owner_id=str(shop.owner_id),
         name=shop.name,
         address=shop.address,
+        cameras=shop.cameras or [],
         managers=[
             ManagerInfo(
                 id=str(m.id),
@@ -228,6 +241,7 @@ async def create_shop(
     
     - **name**: Shop name (required)
     - **address**: Shop address (optional)
+    - **cameras**: List of camera URLs (optional)
     - **assigned_manager_emails**: List of manager emails to assign
     
     If a manager email doesn't exist:
@@ -239,7 +253,8 @@ async def create_shop(
     new_shop = Shop(
         owner_id=current_user.id,
         name=request.name,
-        address=request.address
+        address=request.address,
+        cameras=request.cameras
     )
     
     db.add(new_shop)
@@ -328,6 +343,7 @@ async def update_shop(
     
     - **name**: New shop name (optional)
     - **address**: New shop address (optional)
+    - **cameras**: New list of camera URLs (replaces existing, optional)
     - **assigned_manager_emails**: New list of manager emails (replaces existing)
     """
     # Verify ownership
@@ -338,6 +354,8 @@ async def update_shop(
         shop.name = request.name
     if request.address is not None:
         shop.address = request.address
+    if request.cameras is not None:
+        shop.cameras = request.cameras
     
     # Update manager assignments if provided
     if request.assigned_manager_emails is not None:
