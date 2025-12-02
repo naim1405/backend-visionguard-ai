@@ -174,13 +174,23 @@ def assign_managers_to_shop(
             logger.warning(f"User {email} exists but is not a MANAGER (role: {manager.role})")
             continue
         
-        # Check if assignment already exists
+        # Check if manager is already assigned to ANY shop
         existing_assignment = db.query(ShopManager).filter(
+            ShopManager.manager_id == manager.id
+        ).first()
+        
+        if existing_assignment:
+            # Manager can only be assigned to one shop
+            logger.warning(f"Manager {email} is already assigned to another shop")
+            continue
+        
+        # Check if assignment already exists for this shop
+        shop_assignment = db.query(ShopManager).filter(
             ShopManager.shop_id == shop.id,
             ShopManager.manager_id == manager.id
         ).first()
         
-        if not existing_assignment:
+        if not shop_assignment:
             # Create new assignment
             assignment = ShopManager(
                 shop_id=shop.id,
