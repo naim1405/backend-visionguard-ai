@@ -13,11 +13,13 @@ from sqlalchemy.orm import Session
 import base64
 import cv2
 import numpy as np
+from uuid import UUID as PyUUID
 
 # Import authentication
 from app.db import SessionLocal
 from app.models import User
 from app.core.auth import verify_token
+from app.services.anomaly_service import AnomalyService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -218,6 +220,129 @@ ws_manager = WebSocketManager()
 
 
 # ============================================================================
+# Owl Eye Detection Handler
+# ============================================================================
+
+
+async def handle_owl_eye_detection(user_id: str, message: dict, websocket: WebSocket):
+    """
+    Handle Owl Eye (Sentry Mode) person detection
+    Saves detection to anomaly table and sends notification back
+    
+    Args:
+        user_id: User identifier
+        message: Owl Eye detection message containing frame data and detections
+        websocket: WebSocket connection to send response
+    """
+    try:
+        data = message.get('data', {})
+        timestamp = data.get('timestamp')
+        frame_data_url = data.get('frame_data', '')
+        shop_id = data.get('shop_id')
+        stream_id = data.get('stream_id')
+        detections = data.get('detections', [])
+        location = data.get('location', 'Unknown Location')
+        
+        if not shop_id:
+            logger.error(f"[Owl Eye] Missing shop_id in message from user {user_id}")
+            return
+        
+        logger.info(f"[Owl Eye] Processing detection for user {user_id}, shop {shop_id}: {len(detections)} person(s)")
+        
+        # Decode base64 frame
+        if frame_data_url.startswith('data:image'):
+            # Remove data:image/jpeg;base64, prefix
+            frame_data_url = frame_data_url.split(',', 1)[1]
+        
+        frame_bytes = base64.b64decode(frame_data_url)
+        frame_array = np.frombuffer(frame_bytes, dtype=np.uint8)
+        frame = cv2.imdecode(frame_array, cv2.IMREAD_COLOR)
+        
+        if frame is None:
+            logger.error(f"[Owl Eye] Failed to decode frame from user {user_id}")
+            return
+        
+        # Draw bounding boxes on frame
+        annotated_frame = frame.copy()
+        for detection in detections:
+            bbox = detection.get('bbox', {})
+            x, y, w, h = bbox.get('x', 0), bbox.get('y', 0), bbox.get('w', 0), bbox.get('h', 0)
+            confidence = detection.get('confidence', 0)
+            
+            # Draw red bounding box
+            cv2.rectangle(annotated_frame, (int(x), int(y)), (int(x + w), int(y + h)), (0, 0, 255), 3)
+            
+            # Add label
+            label = f"INTRUDER {confidence:.2f}"
+            cv2.putText(annotated_frame, label, (int(x), int(y) - 10),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        
+        # Create description
+        num_persons = len(detections)
+        description = f"Owl Eye Alert: {num_persons} unauthorized person(s) detected in sentry mode"
+        
+        # Save to database
+        db = SessionLocal()
+        try:
+            anomaly = AnomalyService.create_anomaly(
+                db=db,
+                shop_id=PyUUID(shop_id),
+                location=location,
+                description=description,
+                frame=annotated_frame,
+                detection_result={
+                    'type': 'owl_eye_detection',
+                    'timestamp': timestamp,
+                    'stream_id': stream_id,
+                    'num_persons': num_persons,
+                    'detections': detections,
+                    'confidence': 'High' if num_persons > 0 else 'Medium',
+                    'score': sum(d.get('confidence', 0) for d in detections) / max(num_persons, 1)
+                },
+                anomaly_type="owl_eye_intrusion"
+            )
+            
+            if anomaly:
+                logger.info(f"[Owl Eye] Saved anomaly {anomaly.id} for user {user_id}")
+                
+                # Send notification back to frontend using ws_manager
+                notification_msg = {
+                    'type': 'notification',
+                    'data': {
+                        'notification_id': str(anomaly.id),
+                        'title': 'OWL EYE ALERT',
+                        'message': f'{description} at {location}',
+                        'priority': anomaly.severity.value,
+                        'type': 'owl_eye',
+                        'timestamp': anomaly.timestamp.isoformat(),
+                        'metadata': {
+                            'anomaly_id': str(anomaly.id),
+                            'shop_id': str(shop_id),
+                            'stream_id': stream_id,
+                            'num_persons': num_persons,
+                            'detections': detections
+                        },
+                        'action_url': f'/suspicious-activity?anomaly_id={anomaly.id}'
+                    }
+                }
+                
+                # Use ws_manager to send through the proper connection
+                await ws_manager.send_message(user_id, notification_msg)
+                logger.info(f"[Owl Eye] Sent notification for anomaly {anomaly.id} to user {user_id}")
+            else:
+                logger.error(f"[Owl Eye] Failed to save anomaly for user {user_id}")
+                
+        except Exception as e:
+            logger.error(f"[Owl Eye] Error saving anomaly: {e}", exc_info=True)
+            db.rollback()
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"[Owl Eye] Error handling detection from user {user_id}: {e}", exc_info=True)
+
+
+# ============================================================================
 # WebSocket Endpoints
 # ============================================================================
 
@@ -318,6 +443,10 @@ async def websocket_endpoint(
                     # Client responded to our ping
                     ws_manager.update_heartbeat(user_id)
                     logger.debug(f"[WS] Received pong from user {user_id}")
+                elif message_type == 'owl_eye_detection':
+                    # Handle Owl Eye (Sentry Mode) detection
+                    logger.info(f"[WS] Received Owl Eye detection from user {user_id}")
+                    asyncio.create_task(handle_owl_eye_detection(user_id, message, websocket))
                 elif message_type == 'ack':
                     # Frontend acknowledges receiving anomaly alert
                     stream_id = message.get('stream_id', 'unknown')
