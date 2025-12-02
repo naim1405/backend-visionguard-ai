@@ -137,8 +137,8 @@ async def get_anomalies(
             except ValueError:
                 raise HTTPException(status_code=400, detail=f"Invalid severity: {severity}")
         
-        # If user is MANAGER or USER, filter by their shops only
-        if current_user.role in [UserRole.MANAGER, UserRole.USER]:
+        # If user is MANAGER, filter by their shops only
+        if current_user.role == UserRole.MANAGER:
             if shop_id:
                 # Verify user has access to this shop
                 # TODO: Add shop access verification
@@ -230,7 +230,7 @@ async def update_anomaly(
     """
     try:
         # Check permissions
-        if current_user.role not in [UserRole.OWNER, UserRole.MANAGER, UserRole.ADMIN]:
+        if current_user.role not in [UserRole.OWNER, UserRole.MANAGER]:
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         
         # Verify anomaly exists
