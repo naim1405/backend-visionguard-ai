@@ -16,7 +16,7 @@ from app.ai.detection.tracker import PersonTracker
 from app.ai.detection.frame_buffer import FrameBufferManager
 from app.ai.detection.anomaly_detector import AnomalyDetector
 from app.ai.model_manager import get_model_manager
-from config import (
+from app.config import (
     YOLO_MODEL_PATH,
     POSE_MODEL_PATH,
     ANOMALY_MODEL_PATH,

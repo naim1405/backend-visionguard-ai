@@ -644,7 +644,7 @@ async def internal_error_handler(request, exc):
 
 if __name__ == "__main__":
     import uvicorn
-    from config import SERVER_HOST, SERVER_PORT, DEBUG_MODE
+    from app.config import SERVER_HOST, SERVER_PORT, DEBUG_MODE
 
     logger.info("Starting server with uvicorn...")
 

@@ -7,7 +7,7 @@ import logging
 from typing import Optional
 from app.ai.detection.person_detector import PersonDetector
 from app.ai.detection.anomaly_detector import AnomalyDetector
-from config import (
+from app.config import (
     YOLO_MODEL_PATH,
     POSE_MODEL_PATH,
     ANOMALY_MODEL_PATH,

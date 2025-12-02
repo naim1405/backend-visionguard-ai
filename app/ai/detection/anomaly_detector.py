@@ -12,7 +12,8 @@ from .utils import gen_clip_seg_data_np, normalize_pose
 import sys
 import os
 # Add models directory to path for STG_NF imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'models'))
+models_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models'))
+sys.path.insert(0, models_path)
 
 from STG_NF.model_pose import STG_NF
 
