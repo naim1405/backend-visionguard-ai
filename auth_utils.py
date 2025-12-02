@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict
 from passlib.context import CryptContext
 import jwt
-from jwt.exceptions import InvalidTokenError
+from jwt.exceptions import PyJWTError
 
 # Password hashing configuration using bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -125,12 +125,12 @@ def verify_token(token: str) -> Optional[Dict]:
         Decoded token payload if valid, None otherwise
         
     Raises:
-        InvalidTokenError: If token is invalid or expired
+        PyJWTError: If token is invalid or expired
     """
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         return payload
-    except InvalidTokenError:
+    except PyJWTError:
         return None
 
 

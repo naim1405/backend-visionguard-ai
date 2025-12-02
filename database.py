@@ -11,8 +11,7 @@ from typing import Generator
 
 # Database URL from environment variable or default
 DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/visionguard_db"
+    "DATABASE_URL", "postgresql://postgres:124@localhost:5432/visionguard_db"
 )
 
 # Create SQLAlchemy engine
@@ -33,7 +32,7 @@ def get_db() -> Generator:
     """
     Dependency function to get database session
     Yields a database session and ensures it's closed after use
-    
+
     Usage in FastAPI:
         @app.get("/endpoint")
         def endpoint(db: Session = Depends(get_db)):
@@ -52,4 +51,5 @@ def init_db():
     This should be called on application startup
     """
     from models import User, Shop, ShopManager  # Import models to register them
+
     Base.metadata.create_all(bind=engine)
