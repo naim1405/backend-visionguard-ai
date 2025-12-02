@@ -11,11 +11,11 @@ import asyncio
 from typing import Dict, List, Optional
 from av import VideoFrame
 
-from detection.person_detector import PersonDetector
-from detection.tracker import PersonTracker
-from detection.frame_buffer import FrameBufferManager
-from detection.anomaly_detector import AnomalyDetector
-from model_manager import get_model_manager
+from app.ai.detection.person_detector import PersonDetector
+from app.ai.detection.tracker import PersonTracker
+from app.ai.detection.frame_buffer import FrameBufferManager
+from app.ai.detection.anomaly_detector import AnomalyDetector
+from app.ai.model_manager import get_model_manager
 from config import (
     YOLO_MODEL_PATH,
     POSE_MODEL_PATH,

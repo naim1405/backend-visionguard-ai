@@ -50,6 +50,6 @@ def init_db():
     Initialize database - create all tables
     This should be called on application startup
     """
-    from models import User, Shop, ShopManager  # Import models to register them
+    from app.models import User, Shop, ShopManager  # Import models to register them
 
     Base.metadata.create_all(bind=engine)

@@ -9,9 +9,9 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from uuid import UUID
 
-from database import get_db
-from models import User, UserRole, Shop, ShopManager
-from auth_utils import verify_token
+from app.db import get_db
+from app.models import User, UserRole, Shop, ShopManager
+from app.core.auth import verify_token
 
 # HTTP Bearer token scheme
 security = HTTPBearer()

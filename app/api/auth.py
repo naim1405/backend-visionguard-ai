@@ -10,10 +10,10 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from sqlalchemy.orm import Session
 from datetime import timedelta
 
-from database import get_db
-from models import User, UserRole
-from auth_utils import hash_password, verify_password, create_access_token, create_refresh_token
-from auth_dependencies import get_current_user
+from app.db import get_db
+from app.models import User, UserRole
+from app.core.auth import hash_password, verify_password, create_access_token, create_refresh_token
+from app.core.dependencies import get_current_user
 
 # Configure logging
 logger = logging.getLogger(__name__)

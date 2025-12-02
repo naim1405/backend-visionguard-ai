@@ -1,0 +1,3 @@
+"""
+VisionGuard AI Backend Application
+"""
