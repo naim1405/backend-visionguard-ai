@@ -93,6 +93,7 @@ class ShopResponse(BaseModel):
     name: str
     address: Optional[str]
     cameras: List[str]
+    telegram_chat_id: Optional[str]
     managers: List[ManagerInfo]
     created_at: str
     updated_at: str
@@ -105,6 +106,7 @@ class ShopResponse(BaseModel):
                 "name": "Downtown Store",
                 "address": "123 Main St, City, State 12345",
                 "cameras": ["rtsp://camera1.example.com/stream", "rtsp://camera2.example.com/stream"],
+                "telegram_chat_id": "123456789",
                 "managers": [
                     {
                         "id": "abc12345-6789-def0-1234-567890abcdef",
@@ -217,6 +219,7 @@ def build_shop_response(shop: Shop, db: Session) -> ShopResponse:
         name=shop.name,
         address=shop.address,
         cameras=shop.cameras or [],
+        telegram_chat_id=shop.telegram_chat_id,
         managers=[
             ManagerInfo(
                 id=str(m.id),

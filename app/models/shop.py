@@ -25,6 +25,7 @@ class Shop(Base):
     name = Column(String(255), nullable=False)
     address = Column(Text, nullable=True)
     cameras = Column(ARRAY(String), nullable=True, default=list)
+    telegram_chat_id = Column(String(255), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

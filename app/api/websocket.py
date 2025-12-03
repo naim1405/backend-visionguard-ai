@@ -17,9 +17,10 @@ from uuid import UUID as PyUUID
 
 # Import authentication
 from app.db import SessionLocal
-from app.models import User
+from app.models import User, Shop
 from app.core.auth import verify_token
 from app.services.anomaly_service import AnomalyService
+from app.services.telegram_service import get_telegram_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -139,23 +140,76 @@ class WebSocketManager:
     
     async def send_message(self, user_id: str, message: dict):
         """
-        Send generic message to frontend
+        Send generic message to frontend and Telegram (if configured)
         
         Args:
             user_id: User identifier
             message: Message dictionary
         """
+        # Send to WebSocket frontend
         if user_id not in self.connections:
             logger.warning(f"[WS] No WebSocket connection for user: {user_id}")
-            return
+        else:
+            websocket = self.connections[user_id]
+            try:
+                await websocket.send_json(message)
+            except Exception as e:
+                logger.error(f"[WS] Error sending message to user {user_id}: {e}")
+                self.disconnect(user_id)
         
-        websocket = self.connections[user_id]
+        # Send to Telegram if it's a notification and shop has Telegram configured
+        if message.get('type') == 'notification':
+            await self._send_telegram_notification(message)
+    
+    async def _send_telegram_notification(self, message: dict):
+        """
+        Send notification to Telegram if shop has Telegram chat configured
         
+        Args:
+            message: Notification message dictionary
+        """
         try:
-            await websocket.send_json(message)
+            notification_data = message.get('data', {})
+            metadata = notification_data.get('metadata', {})
+            shop_id = metadata.get('shop_id')
+            
+            if not shop_id:
+                return
+            
+            # Get shop and check if Telegram is configured
+            db = SessionLocal()
+            try:
+                from uuid import UUID as PyUUID2
+                shop = db.query(Shop).filter(Shop.id == PyUUID2(shop_id)).first()
+                
+                if shop and shop.telegram_chat_id:
+                    # Send Telegram notification
+                    telegram_service = get_telegram_service()
+                    title = notification_data.get('title', 'Alert')
+                    msg = notification_data.get('message', '')
+                    priority = notification_data.get('priority', 'medium')
+                    
+                    success = await telegram_service.send_notification(
+                        chat_id=shop.telegram_chat_id,
+                        title=title,
+                        message=msg,
+                        priority=priority
+                    )
+                    
+                    if success:
+                        logger.info(
+                            f"[Telegram] Notification sent for shop '{shop.name}' "
+                            f"(chat_id: {shop.telegram_chat_id})"
+                        )
+                    else:
+                        logger.warning(
+                            f"[Telegram] Failed to send notification for shop '{shop.name}'"
+                        )
+            finally:
+                db.close()
+                
         except Exception as e:
-            logger.error(f"[WS] Error sending message to user {user_id}: {e}")
-            self.disconnect(user_id)
+            logger.error(f"[Telegram] Error sending notification: {e}")
     
     def get_connection(self, user_id: str) -> WebSocket | None:
         """

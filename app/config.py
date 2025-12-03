@@ -135,6 +135,19 @@ else:
 ALLOW_ALL_ORIGINS = ENVIRONMENT == "development"
 
 # ============================================================================
+# TELEGRAM BOT CONFIGURATION
+# ============================================================================
+
+# Telegram Bot Token for notifications
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8315493205:AAHDfB8fWZQ_N9PMLk2QCchQ0OG6I2PiqPU")
+
+# Telegram Bot Username
+TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "VisionGuardAIBot")
+
+# Telegram API base URL
+TELEGRAM_API_BASE_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
+
+# ============================================================================
 # LOGGING CONFIGURATION
 # ============================================================================
 

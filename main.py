@@ -46,6 +46,7 @@ from app.api.auth import router as auth_router
 from app.api.shops import router as shop_router
 from app.api.notifications import router as notification_router
 from app.api.anomalies import router as anomaly_router
+from app.api.telegram import router as telegram_router
 
 # Configure logging
 logging.basicConfig(
@@ -285,6 +286,23 @@ async def lifespan(app: FastAPI):
     else:
         logger.info(f"✓ CORS: Allowing origins: {allowed_origins}")
 
+    # Start Telegram bot polling
+    logger.info("Starting Telegram bot polling...")
+    try:
+        from app.api.telegram import poll_telegram_updates
+        import app.api.telegram as telegram_module
+        
+        # Set polling active flag
+        telegram_module.polling_active = True
+        
+        # Start polling in background
+        import asyncio
+        asyncio.create_task(poll_telegram_updates())
+        logger.info("✓ Telegram bot polling started")
+    except Exception as e:
+        logger.warning(f"⚠ Failed to start Telegram polling: {e}")
+        logger.warning("  Telegram bot will not respond to messages automatically")
+
     logger.info("✓ Application started successfully")
     logger.info("=" * 70)
 
@@ -294,6 +312,14 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 70)
     logger.info("Shutting down application...")
     logger.info("=" * 70)
+
+    # Stop Telegram polling
+    try:
+        import app.api.telegram as telegram_module
+        telegram_module.polling_active = False
+        logger.info("✓ Telegram polling stopped")
+    except:
+        pass
 
     # Clean up all user sessions and streams
     session_mgr = get_session_manager()
@@ -372,6 +398,10 @@ logger.info("✓ Notification router included at /api/notifications")
 # Include anomaly router
 app.include_router(anomaly_router)
 logger.info("✓ Anomaly router included at /api/anomalies")
+
+# Include Telegram router
+app.include_router(telegram_router)
+logger.info("✓ Telegram router included at /telegram")
 
 
 # ============================================================================
