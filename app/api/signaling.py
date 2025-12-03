@@ -296,7 +296,7 @@ async def process_video_track(
                                 'type': 'notification',
                                 'data': {
                                     'notification_id': str(anomaly.id),
-                                    'title': f'{anomaly.severity.value.upper()} Priority Alert',
+                                    'title': 'Alert',
                                     'message': f'{anomaly.description} at {location}',
                                     'priority': anomaly.severity.value,
                                     'type': 'alert',
@@ -305,8 +305,7 @@ async def process_video_track(
                                         'anomaly_id': str(anomaly.id),
                                         'shop_id': str(shop_id),
                                         'stream_id': stream_id,
-                                        'person_id': result.get('person_id'),
-                                        'confidence': result.get('confidence')
+                                        'person_id': result.get('person_id')
                                     },
                                     'action_url': f'/suspicious-activity?anomaly_id={anomaly.id}'
                                 }
